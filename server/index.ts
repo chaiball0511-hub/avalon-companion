@@ -133,8 +133,18 @@ app.post('/api/rooms/:roomId/actions', async (req, res) => {
 
 const clientDir = path.resolve(process.cwd(), 'dist/client');
 if (fs.existsSync(clientDir)) {
-  app.use(express.static(clientDir));
+  // SPA 入口与 HTML 始终不缓存，保证每次部署立刻生效（无需用户手动清缓存）；
+  // 带内容哈希的 JS/CSS 资源则长缓存以提速。
+  app.use((req, res, next) => {
+    const p = req.path === '/' ? '/index.html' : req.path;
+    if (p.endsWith('.html') || req.path === '/' || path.extname(p) === '') {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+    next();
+  });
+  app.use(express.static(clientDir, { maxAge: '1y', immutable: true }));
   app.get(/^\/(?!api|ws).*/, (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(clientDir, 'index.html'));
   });
 }
