@@ -1,0 +1,13 @@
+# 构建上下文排除：云端会用 Dockerfile 内的 npm install 重新装依赖
+node_modules
+dist
+data
+.git
+.gitignore
+responsive-shots
+*.log
+npm-debug.log*
+.DS_Store
+coverage
+.idea
+.vscode

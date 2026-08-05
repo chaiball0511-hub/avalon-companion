@@ -27,6 +27,11 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
   const closedRef = useRef(false);
   const lastPollOk = useRef(false);
   const sessionRef = useRef<StoredSession | null>(session);
+  // 实时通道降级控制：当检测到 WebSocket 在当前网络环境下不稳定（频繁快速断开）时，
+  // 放弃实时通道、长期使用 HTTP 轮询兜底，避免「重新连接」横幅反复闪烁。
+  const wsGaveUp = useRef(false);
+  const wsDropStreak = useRef(0);
+  const lastConnectAt = useRef(0);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -96,10 +101,12 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
     let reconnectTimer: number | undefined;
 
     const connect = () => {
-      if (closedRef.current) return;
+      if (closedRef.current || wsGaveUp.current) return;
       const creds = credentials();
       if (!creds) return;
-      setConnection('connecting');
+      // 若 HTTP 轮询兜底正在稳定工作，重连期间不要弹出「重新连接」警告，保持降级态即可
+      if (!lastPollOk.current) setConnection('connecting');
+      lastConnectAt.current = Date.now();
       let socket: WebSocket;
       try {
         socket = new WebSocket(wsUrl(session.roomId, creds));
@@ -111,6 +118,7 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
 
       socket.onopen = () => {
         retryRef.current = 0;
+        wsDropStreak.current = 0;
         setConnection('open');
       };
       socket.onmessage = (event) => {
@@ -129,9 +137,20 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
         }
       };
       socket.onclose = () => {
-        // WS 断开：若轮询兜底仍可用则保持降级态，否则回到「连接中」由轮询决定
+        if (closedRef.current || wsGaveUp.current) return;
+        // 检测 WebSocket 是否稳定：若建立连接后极短时间内（<10s）即被断开，
+        // 累计快速断开次数；否则视为正常长连接后的断开，重置计数。
+        if (Date.now() - lastConnectAt.current < 10_000) wsDropStreak.current += 1;
+        else wsDropStreak.current = 0;
+        // 连续多次快速断开 → 判定该网络环境下实时通道不可用，长期放弃 WS、纯用轮询兜底，
+        // 从而彻底消除「重新连接」横幅的反复闪烁，游戏仍可正常进行（延迟约 3 秒）。
+        if (wsDropStreak.current >= 2) {
+          wsGaveUp.current = true;
+          setConnection('polling');
+          return;
+        }
         if (!lastPollOk.current) setConnection('connecting');
-        if (!closedRef.current) scheduleRetry();
+        scheduleRetry();
       };
       socket.onerror = () => {
         socket.close();
@@ -144,8 +163,14 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
       reconnectTimer = window.setTimeout(connect, delay);
     };
 
+    const forcePoll = new URLSearchParams(window.location.search).get('realtime') === '0';
     refresh();
-    connect();
+    if (forcePoll) {
+      // 强制稳定模式：完全不建立 WebSocket，仅用 HTTP 轮询兜底，彻底避免重连闪烁
+      setConnection('polling');
+    } else {
+      connect();
+    }
 
     // 应用层心跳：手机客户端定期发 ping，确保服务端（穿过 Railway 等代理）认定连接存活，
     // 不依赖可能被代理吞掉的 WebSocket ping/pong 控制帧。
@@ -165,7 +190,7 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        if (socketRef.current?.readyState !== WebSocket.OPEN) {
+        if (!forcePoll && socketRef.current?.readyState !== WebSocket.OPEN) {
           retryRef.current = 0;
           connect();
         }
