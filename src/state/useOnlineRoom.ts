@@ -121,6 +121,19 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
     refresh();
     connect();
 
+    // 应用层心跳：手机客户端定期发 ping，确保服务端（穿过 Railway 等代理）认定连接存活，
+    // 不依赖可能被代理吞掉的 WebSocket ping/pong 控制帧。
+    const pingTimer = window.setInterval(() => {
+      const s = socketRef.current;
+      if (s && s.readyState === WebSocket.OPEN) {
+        try {
+          s.send(JSON.stringify({ type: 'ping' }));
+        } catch {
+          /* 忽略发送失败 */
+        }
+      }
+    }, 15_000);
+
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         if (socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -138,6 +151,7 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onVisible);
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (pingTimer) window.clearInterval(pingTimer);
       socketRef.current?.close();
       socketRef.current = null;
     };

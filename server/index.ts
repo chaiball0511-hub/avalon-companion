@@ -194,6 +194,9 @@ wss.on('connection', (socket, request) => {
         sub.alive = true;
       });
       socket.on('message', (raw) => {
+        // 收到任何客户端消息都视为连接存活。部分反向代理（如 Railway）不会转发
+        // WebSocket 的 ping/pong 控制帧，仅靠控制帧判断存活会把健康连接误杀。
+        sub.alive = true;
         try {
           const msg = JSON.parse(String(raw)) as { type?: string };
           if (msg.type === 'ping') socket.send(JSON.stringify({ type: 'pong' }));
