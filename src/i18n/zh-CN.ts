@@ -245,6 +245,7 @@ export const zhCN = {
   'room.reconnecting': '正在重新连接…',
   'room.reconnected': '已恢复连接',
   'room.connectionLost': '实时同步中断，正在重试',
+  'room.degraded': '网络降级模式：每 3 秒自动刷新，可正常多人游玩（实时性略低）',
   'room.restarting': '房主正在重新开始本局',
   'room.waitingConfig': '房主正在配置角色',
 

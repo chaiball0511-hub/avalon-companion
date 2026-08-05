@@ -1,7 +1,7 @@
 import type { Action } from '@shared/engine';
 import type { PlayerView } from '@shared/types';
 
-export type ConnectionState = 'connecting' | 'open' | 'closed';
+export type ConnectionState = 'connecting' | 'open' | 'polling' | 'closed';
 
 export interface ControllerError {
   code: string;

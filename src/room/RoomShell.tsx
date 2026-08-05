@@ -134,9 +134,13 @@ export function RoomShell({
       <Header title={t(headerTitle)} />
       <Body withNav>
         {!isTest && connection !== 'open' && (
-          <Banner kind="warn">
-            {connection === 'connecting' ? t('room.reconnecting') : t('room.connectionLost')}
-          </Banner>
+          connection === 'polling' ? (
+            <Banner kind="info">{t('room.degraded')}</Banner>
+          ) : (
+            <Banner kind="warn">
+              {connection === 'connecting' ? t('room.reconnecting') : t('room.connectionLost')}
+            </Banner>
+          )
         )}
         {error && <Banner kind="error">{t(`error.${error.code}`, error.params ?? undefined)}</Banner>}
         {devPanel}

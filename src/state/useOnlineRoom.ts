@@ -25,6 +25,7 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
   const socketRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
   const closedRef = useRef(false);
+  const lastPollOk = useRef(false);
   const sessionRef = useRef<StoredSession | null>(session);
 
   useEffect(() => {
@@ -58,6 +59,30 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
       .then(absorb)
       .catch((err: unknown) => {
         if (err instanceof ApiError) setError({ code: err.code, params: err.params });
+      });
+  }, [absorb, credentials]);
+
+  /**
+   * HTTP 轮询兜底：当 WebSocket 长连接无法建立（如国内网络访问海外托管的
+   * Railway 时 WebSocket 被干扰）时，改为每 3 秒用 REST 拉取最新个人化视图。
+   * 这样即便实时通道不通，多人游戏仍可正常进行，仅操作延迟约 3 秒。
+   */
+  const poll = useCallback(() => {
+    const s = sessionRef.current;
+    const creds = credentials();
+    if (!s || !creds) return;
+    // WebSocket 已连通时由服务端推送保证实时性，无需轮询
+    if (socketRef.current?.readyState === WebSocket.OPEN) return;
+    api
+      .view(s.roomId, creds)
+      .then((envelope) => {
+        lastPollOk.current = true;
+        absorb(envelope);
+        if (socketRef.current?.readyState !== WebSocket.OPEN) setConnection('polling');
+      })
+      .catch(() => {
+        lastPollOk.current = false;
+        if (socketRef.current?.readyState !== WebSocket.OPEN) setConnection('closed');
       });
   }, [absorb, credentials]);
 
@@ -104,7 +129,8 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
         }
       };
       socket.onclose = () => {
-        setConnection('closed');
+        // WS 断开：若轮询兜底仍可用则保持降级态，否则回到「连接中」由轮询决定
+        if (!lastPollOk.current) setConnection('connecting');
         if (!closedRef.current) scheduleRetry();
       };
       socket.onerror = () => {
@@ -134,6 +160,9 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
       }
     }, 15_000);
 
+    // HTTP 轮询兜底：WebSocket 不通时每 3 秒拉取最新状态，保证游戏可玩
+    const pollTimer = window.setInterval(poll, 3000);
+
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         if (socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -152,10 +181,11 @@ export function useOnlineRoom(session: StoredSession | null): RoomController & {
       window.removeEventListener('online', onVisible);
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       if (pingTimer) window.clearInterval(pingTimer);
+      if (pollTimer) window.clearInterval(pollTimer);
       socketRef.current?.close();
       socketRef.current = null;
     };
-  }, [session, credentials, refresh]);
+  }, [session, credentials, refresh, poll]);
 
   /* ------------------------------ 动作 ------------------------------ */
   const dispatch = useCallback(
