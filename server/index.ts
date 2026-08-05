@@ -59,8 +59,8 @@ app.get('/api/health', (_req, res) => {
 
 app.post('/api/rooms', async (req, res) => {
   try {
-    const nickname = String((req.body as { nickname?: string })?.nickname ?? '');
-    const result = await service.createRoom(nickname);
+    const { nickname, deviceId } = req.body as { nickname?: string; deviceId?: string };
+    const result = await service.createRoom(String(nickname ?? ''), String(deviceId ?? ''));
     res.json(result);
   } catch (error) {
     sendError(res, error);
@@ -77,8 +77,8 @@ app.get('/api/rooms/:code/summary', async (req, res) => {
 
 app.post('/api/rooms/:code/join', async (req, res) => {
   try {
-    const nickname = String((req.body as { nickname?: string })?.nickname ?? '');
-    res.json(await service.joinRoom(req.params.code, nickname));
+    const { nickname, deviceId } = req.body as { nickname?: string; deviceId?: string };
+    res.json(await service.joinRoom(req.params.code, String(nickname ?? ''), String(deviceId ?? '')));
   } catch (error) {
     sendError(res, error);
   }

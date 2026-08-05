@@ -28,9 +28,10 @@ function makeRoom(playerCount: number, seed = 1, config: RoleConfig = DEFAULT_RO
     playerTokenHash: 'h',
     now,
     roleConfig: { ...config },
+    deviceId: 'd1',
   });
   for (let i = 2; i <= playerCount; i += 1) {
-    addPlayer(room, { playerId: `p${i}`, nickname: `P${i}`, tokenHash: 'h', now });
+    addPlayer(room, { playerId: `p${i}`, nickname: `P${i}`, tokenHash: 'h', now, deviceId: `d${i}` });
   }
   room.firstLeaderPlayerId = room.playerOrder[0]!;
   applyAction(room, { playerId: 'p1', hostVerified: true }, { type: 'START_GAME' }, { now, rng });
@@ -89,9 +90,10 @@ function createLobby(playerCount: number, config: RoleConfig): Room {
     playerTokenHash: 'h',
     now,
     roleConfig: { ...config },
+    deviceId: 'd1',
   });
   for (let i = 2; i <= playerCount; i += 1) {
-    addPlayer(room, { playerId: `p${i}`, nickname: `P${i}`, tokenHash: 'h', now });
+    addPlayer(room, { playerId: `p${i}`, nickname: `P${i}`, tokenHash: 'h', now, deviceId: `d${i}` });
   }
   return room;
 }
@@ -257,8 +259,9 @@ describe('权限与安全性', () => {
       playerTokenHash: 'h',
       now: 1000,
       roleConfig: { ...DEFAULT_ROLE_CONFIG },
+      deviceId: 'd1',
     });
-    addPlayer(room, { playerId: 'p2', nickname: 'P2', tokenHash: 'h', now: 1000 });
+    addPlayer(room, { playerId: 'p2', nickname: 'P2', tokenHash: 'h', now: 1000, deviceId: 'd2' });
     const nonHost: Actor = { playerId: 'p2', hostVerified: false };
     expect(() => applyAction(room, nonHost, { type: 'OPEN_ROLE_CONFIG' }, { now: 1000, rng: createSeededRng(1) })).toThrow();
   });

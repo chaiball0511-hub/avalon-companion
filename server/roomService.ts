@@ -1,10 +1,12 @@
 import {
   EngineError,
+  PREGAME_STATUSES,
   addPlayer,
   applyAction,
   computePlayerView,
   createRoom as createRoomEntity,
   findPlayer,
+  normalizeNickname,
   requestSeatClaim as requestSeatClaimEntity,
   setPlayerOnline,
   type Action,
@@ -80,7 +82,7 @@ export class RoomService {
 
   /* ------------------------- 房间创建 / 加入 ------------------------- */
 
-  async createRoom(nickname: string): Promise<{
+  async createRoom(nickname: string, deviceId: string): Promise<{
     roomId: string;
     roomCode: string;
     playerId: string;
@@ -89,6 +91,7 @@ export class RoomService {
     view: PlayerView;
   }> {
     try {
+      if (!deviceId) throw new ServiceError('DEVICE_ID_REQUIRED', 400);
       const now = Date.now();
       let roomCode = generateRoomCode();
       for (let i = 0; i < 8 && (await this.store.getByCode(roomCode)); i += 1) {
@@ -112,6 +115,7 @@ export class RoomService {
         playerTokenHash: hashToken(playerToken),
         now,
         roleConfig: { ...DEFAULT_ROLE_CONFIG },
+        deviceId,
       });
 
       await this.store.create(room);
@@ -131,24 +135,42 @@ export class RoomService {
   async joinRoom(
     roomCode: string,
     nickname: string,
+    deviceId: string,
   ): Promise<{ roomId: string; roomCode: string; playerId: string; playerToken: string; view: PlayerView }> {
     try {
+      if (!deviceId) throw new ServiceError('DEVICE_ID_REQUIRED', 400);
       const existing = await this.requireRoomByCode(roomCode);
       const playerId = generateId();
       const playerToken = generateToken();
       const now = Date.now();
 
-      const { room } = await this.store.transact(existing.id, (draft) => {
+      const { room, result } = await this.store.transact(existing.id, (draft) => {
         this.assertUsable(draft);
-        addPlayer(draft, { playerId, nickname, tokenHash: hashToken(playerToken), now });
+        // 同一设备已在此房间拥有席位 → 恢复该席位，而非新建玩家，
+        // 从而杜绝「一台手机用邀请码多次加入同一房间、产生多个身份」的问题。
+        const own = draft.players.find((p) => p.deviceId === deviceId);
+        if (own) {
+          // 游戏进行中不允许把已离席的设备席位强行拉回，避免破坏对局
+          if (!PREGAME_STATUSES.includes(draft.status)) {
+            throw new EngineError('GAME_ALREADY_STARTED', { deviceId });
+          }
+          own.reconnectTokenHash = hashToken(playerToken);
+          own.nickname = normalizeNickname(nickname);
+          own.online = true;
+          own.leftAt = null;
+          own.lastSeenAt = now;
+          return { id: own.id };
+        }
+        addPlayer(draft, { playerId, nickname, tokenHash: hashToken(playerToken), now, deviceId });
+        return { id: playerId };
       });
 
       return {
         roomId: room.id,
         roomCode: room.roomCode,
-        playerId,
+        playerId: result.id,
         playerToken,
-        view: computePlayerView(room, playerId, now),
+        view: computePlayerView(room, result.id, now),
       };
     } catch (error) {
       throw toServiceError(error);

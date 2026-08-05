@@ -63,6 +63,8 @@ export interface Player {
   seatIndex: number;
   isHost: boolean;
   online: boolean;
+  /** 加入时记录的设备指纹；同一设备重复加入同一房间时用于恢复席位，而非新建玩家 */
+  deviceId: string;
   /** 只存哈希，明文 token 仅存在于玩家自己的设备 */
   reconnectTokenHash: string;
   joinedAt: number;

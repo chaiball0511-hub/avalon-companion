@@ -73,17 +73,17 @@ export interface Credentials {
 }
 
 export const api = {
-  createRoom(nickname: string) {
+  createRoom(nickname: string, deviceId: string) {
     return request<CreateRoomResponse>('/api/rooms', {
       method: 'POST',
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ nickname, deviceId }),
     });
   },
 
-  joinRoom(roomCode: string, nickname: string) {
+  joinRoom(roomCode: string, nickname: string, deviceId: string) {
     return request<JoinRoomResponse>(`/api/rooms/${encodeURIComponent(roomCode)}/join`, {
       method: 'POST',
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ nickname, deviceId }),
     });
   },
 

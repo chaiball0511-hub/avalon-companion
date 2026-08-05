@@ -82,7 +82,7 @@ function setStatus(room: Room, next: RoomStatus): void {
 }
 
 /** 尚未发牌的阶段 */
-const PREGAME_STATUSES: RoomStatus[] = ['LOBBY', 'ROLE_CONFIGURATION', 'RESTARTING'];
+export const PREGAME_STATUSES: RoomStatus[] = ['LOBBY', 'ROLE_CONFIGURATION', 'RESTARTING'];
 
 /* ------------------------------------------------------------------ *
  * Actor / Action
@@ -143,6 +143,7 @@ export interface CreateRoomInput {
   playerTokenHash: string;
   now: number;
   roleConfig: RoleConfig;
+  deviceId: string;
 }
 
 export function createRoom(input: CreateRoomInput): Room {
@@ -153,6 +154,7 @@ export function createRoom(input: CreateRoomInput): Room {
     seatIndex: 0,
     isHost: true,
     online: true,
+    deviceId: input.deviceId,
     reconnectTokenHash: input.playerTokenHash,
     joinedAt: input.now,
     lastSeenAt: input.now,
@@ -202,6 +204,7 @@ export interface JoinRoomInput {
   nickname: string;
   tokenHash: string;
   now: number;
+  deviceId: string;
 }
 
 export function addPlayer(room: Room, input: JoinRoomInput): Player {
@@ -222,6 +225,7 @@ export function addPlayer(room: Room, input: JoinRoomInput): Player {
     seatIndex: room.playerOrder.length,
     isHost: false,
     online: true,
+    deviceId: input.deviceId,
     reconnectTokenHash: input.tokenHash,
     joinedAt: input.now,
     lastSeenAt: input.now,

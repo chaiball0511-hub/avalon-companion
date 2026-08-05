@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useT } from '../i18n';
 import { ApiError, api, type RoomSummary } from '../state/api';
-import { lastNickname, loadSession, saveSession } from '../state/session';
+import { getDeviceId, lastNickname, loadSession, saveSession } from '../state/session';
 import { Banner, Body, Button, Card, Header, Screen, Tag } from '../components/ui';
 import { NICKNAME_MAX_LENGTH } from '@shared/constants';
 
@@ -50,7 +50,7 @@ export default function Join(): JSX.Element {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.joinRoom(roomCode, name);
+      const res = await api.joinRoom(roomCode, name, getDeviceId());
       saveSession({
         roomId: res.roomId,
         roomCode: res.roomCode,

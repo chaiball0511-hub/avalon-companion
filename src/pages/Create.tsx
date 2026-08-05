@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useT } from '../i18n';
 import { ApiError, api } from '../state/api';
-import { lastNickname, saveSession } from '../state/session';
+import { getDeviceId, lastNickname, saveSession } from '../state/session';
 import { Banner, Body, Button, Card, Header, Screen } from '../components/ui';
 import { NICKNAME_MAX_LENGTH } from '@shared/constants';
 
@@ -23,7 +23,7 @@ export default function Create(): JSX.Element {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.createRoom(name);
+      const res = await api.createRoom(name, getDeviceId());
       saveSession({
         roomId: res.roomId,
         roomCode: res.roomCode,
