@@ -1,0 +1,18 @@
+# Render.com 一键部署配置
+# 用法：在 Render 新建 "Blueprint" 并连接本仓库，或手动新建 Web Service 指向本目录。
+services:
+  - type: web
+    name: avalon-companion
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # 云端为临时实例，关闭本地文件持久化（房间仅存于内存，重启即清空）
+      - key: AVALON_DATA_FILE
+        value: "none"
+      # PORT 由 Render 自动注入，无需手动设置

@@ -1,0 +1,22 @@
+# 依赖（由平台安装，不传）
+node_modules/
+
+# 构建产物（由平台构建，不传）
+dist/
+
+# 运行时数据（云端用 AVALON_DATA_FILE=none，不传）
+data/
+
+# 本地调试/截图产物
+responsive-shots/
+errors.log
+shots.log
+*.log
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.WorkBuddy/
+.workbuddy/
